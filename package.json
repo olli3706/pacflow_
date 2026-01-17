@@ -1,0 +1,13 @@
+{
+  "name": "pacflow",
+  "version": "1.0.0",
+  "description": "Simple PacFlow login page",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["pacflow", "login", "frontend"],
+  "author": "",
+  "license": "ISC"
+}
