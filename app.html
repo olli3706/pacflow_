@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PackFlow</title>
+    <link rel="stylesheet" href="app.css">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-left">
+            <h1 class="app-title">PackFlow</h1>
+        </div>
+        <div class="nav-center">
+            <button class="nav-tab active" data-page="create-sow">Create Statement of Work</button>
+            <button class="nav-tab" data-page="metrics">Metrics</button>
+            <button class="nav-tab" data-page="payments">Payments</button>
+        </div>
+        <div class="nav-right">
+            <button class="nav-action" id="settingsBtn">Settings</button>
+            <button class="nav-action" id="signOutBtn">Sign Out</button>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <!-- Create Statement of Work Page -->
+        <div id="create-sow-page" class="page active">
+            <h2>Create New Statement of Work</h2>
+            <div class="sow-form-container">
+                <div class="sow-form-columns">
+                    <!-- Left Column -->
+                    <div class="sow-column-left">
+                        <!-- Contract Details Card -->
+                        <div class="sow-card">
+                            <h3 class="sow-card-title">Contract Details</h3>
+                            <div class="sow-form-group">
+                                <label for="projectName" class="sow-label">Project Name <span class="required">*</span></label>
+                                <input type="text" id="projectName" class="sow-input" />
+                                <span class="error-message" id="projectName-error"></span>
+                            </div>
+                            <div class="sow-form-group">
+                                <label for="clientName" class="sow-label">Client Name <span class="required">*</span></label>
+                                <input type="text" id="clientName" class="sow-input" />
+                                <span class="error-message" id="clientName-error"></span>
+                            </div>
+                            <div class="sow-form-group">
+                                <label for="clientEmail" class="sow-label">Client Email <span class="required">*</span></label>
+                                <input type="email" id="clientEmail" class="sow-input" />
+                                <span class="error-message" id="clientEmail-error"></span>
+                            </div>
+                            <div class="sow-form-row">
+                                <div class="sow-form-group">
+                                    <label for="startDate" class="sow-label">Start Date</label>
+                                    <input type="date" id="startDate" class="sow-input" />
+                                </div>
+                                <div class="sow-form-group">
+                                    <label for="endDate" class="sow-label">End Date</label>
+                                    <input type="date" id="endDate" class="sow-input" />
+                                </div>
+                            </div>
+                            <div class="sow-form-row">
+                                <div class="sow-form-group">
+                                    <label for="rate" class="sow-label">Rate ($)</label>
+                                    <input type="number" id="rate" class="sow-input" min="0" step="0.01" />
+                                </div>
+                                <div class="sow-form-group">
+                                    <label for="maxHours" class="sow-label">Max Hours</label>
+                                    <input type="number" id="maxHours" class="sow-input" min="0" />
+                                </div>
+                            </div>
+                            <div class="sow-form-group">
+                                <label for="scopeOfWork" class="sow-label">Scope of Work</label>
+                                <textarea id="scopeOfWork" class="sow-textarea" rows="3"></textarea>
+                            </div>
+                            <div class="sow-form-group">
+                                <label for="deliverables" class="sow-label">Deliverables</label>
+                                <textarea id="deliverables" class="sow-textarea" rows="3"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Payment Request Card -->
+                        <div class="sow-card">
+                            <h3 class="sow-card-title">Payment Request</h3>
+                            <div class="sow-form-group">
+                                <label for="hoursWorked" class="sow-label">Hours Worked</label>
+                                <input type="number" id="hoursWorked" class="sow-input" min="0" step="0.01" />
+                            </div>
+                            <div class="sow-form-group">
+                                <label for="additionalFees" class="sow-label">Additional Fees ($)</label>
+                                <input type="number" id="additionalFees" class="sow-input" min="0" step="0.01" />
+                            </div>
+                            <div class="sow-form-group">
+                                <label for="workDescription" class="sow-label">Work Description</label>
+                                <textarea id="workDescription" class="sow-textarea" rows="4"></textarea>
+                            </div>
+                            <div class="sow-form-group">
+                                <button type="button" id="createPaymentRequestBtn" class="sow-payment-request-btn">Create Payment Request</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column -->
+                    <div class="sow-column-right">
+                        <!-- Payment Summary Card -->
+                        <div class="sow-card">
+                            <h3 class="sow-card-title">Payment Summary</h3>
+                            <div class="sow-summary-item">
+                                <span class="sow-summary-label">Hours × Rate:</span>
+                                <span class="sow-summary-value" id="hoursRateTotal">$0.00</span>
+                            </div>
+                            <div class="sow-summary-item">
+                                <span class="sow-summary-label">Subtotal:</span>
+                                <span class="sow-summary-value" id="subtotal">$0.00</span>
+                            </div>
+                            <div class="sow-summary-item">
+                                <span class="sow-summary-label">Additional Fees:</span>
+                                <span class="sow-summary-value" id="feesDisplay">$0.00</span>
+                            </div>
+                            <div class="sow-summary-item sow-summary-total">
+                                <span class="sow-summary-label">Total:</span>
+                                <span class="sow-summary-value" id="total">$0.00</span>
+                            </div>
+                        </div>
+
+                        <!-- Client Verification Card -->
+                        <div class="sow-card">
+                            <h3 class="sow-card-title">Client Verification</h3>
+                            <p class="sow-verification-text">Review and verify the contract details before saving.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Save Button -->
+                <div class="sow-save-container">
+                    <button type="button" id="saveSowBtn" class="sow-save-button">Save Statement of Work</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metrics Page -->
+        <div id="metrics-page" class="page">
+            <h2>Metrics</h2>
+            <div class="metrics-container">
+                <!-- Metrics Cards -->
+                <div class="metrics-cards" id="metrics-cards">
+                    <!-- Cards will be dynamically loaded here -->
+                </div>
+
+                <!-- Filters -->
+                <div class="metrics-filters">
+                    <div class="filter-group">
+                        <label for="dateRangeFilter" class="filter-label">Date Range:</label>
+                        <select id="dateRangeFilter" class="filter-select">
+                            <option value="all">All Time</option>
+                            <option value="7">Last 7 days</option>
+                            <option value="30">Last 30 days</option>
+                            <option value="90">Last 90 days</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="clientFilter" class="filter-label">Filter by Client:</label>
+                        <input type="text" id="clientFilter" class="filter-input" placeholder="Search client name..." />
+                    </div>
+                </div>
+
+                <!-- Revenue Over Time -->
+                <div class="metrics-section">
+                    <h3 class="metrics-section-title">Revenue Over Time</h3>
+                    <div id="revenue-over-time" class="revenue-chart">
+                        <!-- Chart will be dynamically loaded here -->
+                    </div>
+                </div>
+
+                <!-- Top Clients -->
+                <div class="metrics-section">
+                    <h3 class="metrics-section-title">Top Clients by Revenue</h3>
+                    <div id="top-clients-table" class="metrics-table-container">
+                        <!-- Table will be dynamically loaded here -->
+                    </div>
+                </div>
+
+                <!-- Recent Accepted Payments -->
+                <div class="metrics-section">
+                    <h3 class="metrics-section-title">Recent Accepted Payments</h3>
+                    <div id="recent-payments-table" class="metrics-table-container">
+                        <!-- Table will be dynamically loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payments Page -->
+        <div id="payments-page" class="page">
+            <h2>Payments</h2>
+            <div class="payments-container">
+                <div id="payments-list" class="payments-list">
+                    <!-- Payments will be dynamically loaded here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="payment-utils.js"></script>
+    <script src="app-routing.js"></script>
+    <script src="sow-form.js"></script>
+    <script src="payments-page.js"></script>
+    <script src="metrics-page.js"></script>
+</body>
+</html>
