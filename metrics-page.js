@@ -74,7 +74,7 @@ function loadMetricsPage() {
         </div>
     `;
 
-    // Load revenue over time
+    // Load revenue over time (with filters)
     loadRevenueOverTime(acceptedPayments);
 
     // Load top clients
@@ -86,50 +86,156 @@ function loadMetricsPage() {
 
 function loadRevenueOverTime(payments) {
     const container = document.getElementById('revenue-over-time');
+    const summaryContainer = document.getElementById('revenue-summary');
     if (!container) return;
 
-    if (payments.length === 0) {
-        container.innerHTML = '<p class="empty-text">No data available</p>';
+    // Get selected granularity and range
+    const granularity = document.getElementById('granularitySelect')?.value || 'weeks';
+    const range = document.getElementById('timeRangeSelect')?.value || '12w';
+
+    // Get revenue series
+    const series = getRevenueSeries(payments, granularity, range);
+
+    // Calculate summary stats for the selected range
+    const totalRevenue = series.reduce((sum, item) => sum + item.revenue, 0);
+    const paymentCount = payments.filter(p => {
+        const paymentDate = p.acceptedAt ? new Date(p.acceptedAt) : new Date(p.createdAt);
+        // Check if payment is in the selected range
+        if (range === 'all') return true;
+        const now = new Date();
+        let startDate;
+        if (range === '24h') {
+            startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        } else if (range === '7d') {
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        } else if (range === '12w') {
+            startDate = new Date(now.getTime() - 12 * 7 * 24 * 60 * 60 * 1000);
+        } else if (range === '12m') {
+            startDate = new Date(now.getTime() - 12 * 30 * 24 * 60 * 60 * 1000);
+        } else {
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        }
+        return paymentDate >= startDate && paymentDate <= now;
+    }).length;
+    const averagePayment = paymentCount > 0 ? totalRevenue / paymentCount : 0;
+
+    // Update summary
+    if (summaryContainer) {
+        summaryContainer.innerHTML = `
+            <div class="revenue-summary-item">
+                <span class="summary-label">Total Revenue:</span>
+                <span class="summary-value">$${totalRevenue.toFixed(2)}</span>
+            </div>
+            <div class="revenue-summary-item">
+                <span class="summary-label">Payments:</span>
+                <span class="summary-value">${paymentCount}</span>
+            </div>
+            <div class="revenue-summary-item">
+                <span class="summary-label">Average:</span>
+                <span class="summary-value">$${averagePayment.toFixed(2)}</span>
+            </div>
+        `;
+    }
+
+    // Render chart
+    if (series.length === 0) {
+        container.innerHTML = '<p class="empty-text">No accepted revenue in this period</p>';
         return;
     }
 
-    // Group by week
-    const weeklyData = {};
-    payments.forEach(payment => {
-        const date = payment.acceptedAt ? new Date(payment.acceptedAt) : new Date(payment.createdAt);
-        const weekKey = getWeekKey(date);
-        if (!weeklyData[weekKey]) {
-            weeklyData[weekKey] = 0;
-        }
-        weeklyData[weekKey] += payment.total || 0;
-    });
+    // Create SVG chart
+    const maxRevenue = Math.max(...series.map(s => s.revenue), 1);
+    const chartWidth = 800;
+    const chartHeight = 400;
+    const padding = { top: 20, right: 40, bottom: 60, left: 80 };
+    const plotWidth = chartWidth - padding.left - padding.right;
+    const plotHeight = chartHeight - padding.top - padding.bottom;
 
-    const sortedWeeks = Object.keys(weeklyData).sort();
-    const maxRevenue = Math.max(...Object.values(weeklyData));
-
-    container.innerHTML = `
-        <div class="revenue-chart-bars">
-            ${sortedWeeks.map(week => {
-                const revenue = weeklyData[week];
-                const percentage = maxRevenue > 0 ? (revenue / maxRevenue) * 100 : 0;
-                return `
-                    <div class="revenue-bar-item">
-                        <div class="revenue-bar-label">${week}</div>
-                        <div class="revenue-bar-wrapper">
-                            <div class="revenue-bar" style="width: ${percentage}%"></div>
-                            <span class="revenue-bar-value">$${revenue.toFixed(2)}</span>
-                        </div>
-                    </div>
-                `;
+    // Generate SVG
+    let svg = `
+        <svg width="${chartWidth}" height="${chartHeight}" class="revenue-svg-chart">
+            <defs>
+                <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style="stop-color:#667eea;stop-opacity:0.8" />
+                    <stop offset="100%" style="stop-color:#764ba2;stop-opacity:0.3" />
+                </linearGradient>
+            </defs>
+            
+            <!-- Y-axis labels -->
+            ${Array.from({ length: 6 }, (_, i) => {
+                const value = (maxRevenue / 5) * (5 - i);
+                const y = padding.top + (plotHeight / 5) * i;
+                return `<text x="${padding.left - 10}" y="${y + 5}" text-anchor="end" font-size="12" fill="#666">$${(value / 1000).toFixed(1)}k</text>`;
             }).join('')}
-        </div>
+            
+            <!-- Grid lines -->
+            ${Array.from({ length: 6 }, (_, i) => {
+                const y = padding.top + (plotHeight / 5) * i;
+                return `<line x1="${padding.left}" y1="${y}" x2="${padding.left + plotWidth}" y2="${y}" stroke="#e0e0e0" stroke-width="1" />`;
+            }).join('')}
+            
+            <!-- Data points and line -->
+            <g class="chart-data">
+                ${series.map((item, index) => {
+                    const x = padding.left + (plotWidth / (series.length - 1 || 1)) * index;
+                    const y = padding.top + plotHeight - (item.revenue / maxRevenue) * plotHeight;
+                    return `<circle cx="${x}" cy="${y}" r="4" fill="#667eea" class="data-point" data-tooltip="${item.label}: $${item.revenue.toFixed(2)}" />`;
+                }).join('')}
+                
+                <!-- Line connecting points -->
+                <polyline 
+                    points="${series.map((item, index) => {
+                        const x = padding.left + (plotWidth / (series.length - 1 || 1)) * index;
+                        const y = padding.top + plotHeight - (item.revenue / maxRevenue) * plotHeight;
+                        return `${x},${y}`;
+                    }).join(' ')}"
+                    fill="none" 
+                    stroke="#667eea" 
+                    stroke-width="2"
+                />
+            </g>
+            
+            <!-- X-axis labels -->
+            ${series.map((item, index) => {
+                const x = padding.left + (plotWidth / (series.length - 1 || 1)) * index;
+                const label = granularity === 'hours' 
+                    ? new Date(item.startISO + ':00:00').toLocaleTimeString('en-US', { hour: '2-digit', hour12: false })
+                    : granularity === 'days'
+                    ? new Date(item.startISO).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                    : granularity === 'weeks'
+                    ? `W${index + 1}`
+                    : new Date(item.startISO + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+                return `<text x="${x}" y="${chartHeight - padding.bottom + 20}" text-anchor="middle" font-size="11" fill="#666" transform="rotate(-45 ${x} ${chartHeight - padding.bottom + 20})">${label}</text>`;
+            }).join('')}
+        </svg>
+        
+        <div id="chart-tooltip" class="chart-tooltip" style="display: none;"></div>
     `;
-}
 
-function getWeekKey(date) {
-    const weekStart = new Date(date);
-    weekStart.setDate(date.getDate() - date.getDay());
-    return weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    container.innerHTML = svg;
+
+    // Add tooltip functionality
+    const tooltip = document.getElementById('chart-tooltip');
+    const dataPoints = container.querySelectorAll('.data-point');
+    
+    dataPoints.forEach(point => {
+        point.addEventListener('mouseenter', (e) => {
+            const tooltipText = e.target.getAttribute('data-tooltip');
+            if (tooltip && tooltipText) {
+                const rect = e.target.getBoundingClientRect();
+                tooltip.textContent = tooltipText;
+                tooltip.style.display = 'block';
+                tooltip.style.left = (rect.left + rect.width / 2) + 'px';
+                tooltip.style.top = (rect.top - 30) + 'px';
+            }
+        });
+        
+        point.addEventListener('mouseleave', () => {
+            if (tooltip) {
+                tooltip.style.display = 'none';
+            }
+        });
+    });
 }
 
 function loadTopClients(payments) {
@@ -263,6 +369,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (clientFilter) {
         clientFilter.addEventListener('input', () => {
+            if (metricsPage.classList.contains('active')) {
+                loadMetricsPage();
+            }
+        });
+    }
+
+    // Set up granularity and time range selectors
+    const granularitySelect = document.getElementById('granularitySelect');
+    const timeRangeSelect = document.getElementById('timeRangeSelect');
+
+    // Update time range options based on granularity
+    if (granularitySelect && timeRangeSelect) {
+        granularitySelect.addEventListener('change', () => {
+            const granularity = granularitySelect.value;
+            const currentRange = timeRangeSelect.value;
+            
+            // Update default range based on granularity
+            if (granularity === 'hours' && currentRange !== '24h' && currentRange !== 'all') {
+                timeRangeSelect.value = '24h';
+            } else if (granularity === 'days' && currentRange !== '7d' && currentRange !== 'all') {
+                timeRangeSelect.value = '7d';
+            } else if (granularity === 'weeks' && currentRange !== '12w' && currentRange !== 'all') {
+                timeRangeSelect.value = '12w';
+            } else if (granularity === 'months' && currentRange !== '12m' && currentRange !== 'all') {
+                timeRangeSelect.value = '12m';
+            }
+            
+            if (metricsPage.classList.contains('active')) {
+                loadMetricsPage();
+            }
+        });
+
+        timeRangeSelect.addEventListener('change', () => {
             if (metricsPage.classList.contains('active')) {
                 loadMetricsPage();
             }

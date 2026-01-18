@@ -88,3 +88,69 @@ body {
 .login-button:active {
     transform: translateY(0);
 }
+
+/* Error message for login */
+#login-error {
+    color: #e74c3c;
+    font-size: 14px;
+    margin-bottom: 16px;
+    padding: 8px 12px;
+    background-color: #fee;
+    border: 1px solid #fcc;
+    border-radius: 6px;
+    text-align: center;
+}
+
+/* Signup link */
+.signup-link {
+    text-align: center;
+    margin-top: 16px;
+}
+
+.signup-link a {
+    color: #667eea;
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.2s;
+}
+
+.signup-link a:hover {
+    color: #764ba2;
+    text-decoration: underline;
+}
+
+/* Signup page styles */
+.signup-content {
+    text-align: center;
+    padding: 20px 0;
+}
+
+.coming-soon-text {
+    font-size: 24px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 12px;
+}
+
+.signup-description {
+    font-size: 16px;
+    color: #666;
+    margin-bottom: 24px;
+}
+
+.back-to-login-link {
+    display: inline-block;
+    color: #667eea;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 10px 20px;
+    border: 2px solid #667eea;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.back-to-login-link:hover {
+    background-color: #667eea;
+    color: white;
+}

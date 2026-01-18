@@ -168,7 +168,37 @@
                 <!-- Revenue Over Time -->
                 <div class="metrics-section">
                     <h3 class="metrics-section-title">Revenue Over Time</h3>
-                    <div id="revenue-over-time" class="revenue-chart">
+                    
+                    <!-- Chart Controls -->
+                    <div class="revenue-chart-controls">
+                        <div class="filter-group">
+                            <label for="granularitySelect" class="filter-label">Granularity:</label>
+                            <select id="granularitySelect" class="filter-select">
+                                <option value="hours">Hours</option>
+                                <option value="days">Days</option>
+                                <option value="weeks" selected>Weeks</option>
+                                <option value="months">Months</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="timeRangeSelect" class="filter-label">Time Range:</label>
+                            <select id="timeRangeSelect" class="filter-select">
+                                <option value="24h">Last 24 hours</option>
+                                <option value="7d">Last 7 days</option>
+                                <option value="12w" selected>Last 12 weeks</option>
+                                <option value="12m">Last 12 months</option>
+                                <option value="all">All time</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Summary Stats -->
+                    <div id="revenue-summary" class="revenue-summary">
+                        <!-- Summary will be dynamically loaded here -->
+                    </div>
+
+                    <!-- Chart Container -->
+                    <div id="revenue-over-time" class="revenue-chart-container">
                         <!-- Chart will be dynamically loaded here -->
                     </div>
                 </div>
@@ -202,10 +232,20 @@
         </div>
     </main>
 
+    <script src="auth-utils.js"></script>
     <script src="payment-utils.js"></script>
+    <script src="chart-utils.js"></script>
     <script src="app-routing.js"></script>
     <script src="sow-form.js"></script>
     <script src="payments-page.js"></script>
     <script src="metrics-page.js"></script>
+    <script>
+        // Protect app route - check authentication on load
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!isAuthed()) {
+                window.location.href = 'index.html';
+            }
+        });
+    </script>
 </body>
 </html>
