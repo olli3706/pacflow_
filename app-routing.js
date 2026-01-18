@@ -35,10 +35,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Handle Sign Out - clear auth and redirect to login page
+    // Handle Sign Out - clear auth (Supabase or backdoor) and redirect to login page
     if (signOutBtn) {
-        signOutBtn.addEventListener('click', () => {
-            logout();
+        signOutBtn.addEventListener('click', async () => {
+            await logout(); // Handles both Supabase Auth and backdoor auth
             window.location.href = 'index.html';
         });
     }

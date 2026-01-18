@@ -154,3 +154,15 @@ body {
     background-color: #667eea;
     color: white;
 }
+
+/* Success message */
+.success-message {
+    color: #27ae60;
+    font-size: 14px;
+    margin-bottom: 16px;
+    padding: 8px 12px;
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    border-radius: 6px;
+    text-align: center;
+}

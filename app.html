@@ -232,6 +232,7 @@
         </div>
     </main>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="auth-utils.js"></script>
     <script src="payment-utils.js"></script>
     <script src="chart-utils.js"></script>
@@ -241,9 +242,30 @@
     <script src="metrics-page.js"></script>
     <script>
         // Protect app route - check authentication on load
-        document.addEventListener('DOMContentLoaded', () => {
-            if (!isAuthed()) {
-                window.location.href = 'index.html';
+        // Allows access if either Supabase session OR backdoor auth exists
+        // Use loading flag to avoid redirect loops during initial auth check
+        let authChecked = false;
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Wait a brief moment for any auth state to initialize
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Only check auth once to prevent loops
+            if (!authChecked) {
+                authChecked = true;
+                
+                try {
+                    const authenticated = await isAuthed();
+                    if (!authenticated) {
+                        // Only redirect if we're not already on the login page
+                        if (!window.location.pathname.includes('index.html')) {
+                            window.location.replace('index.html');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Auth check error:', error);
+                    // Don't redirect on error - let user see the page if auth check fails
+                }
             }
         });
     </script>

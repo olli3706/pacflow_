@@ -10,12 +10,30 @@
     <div class="login-container">
         <div class="login-box">
             <h1 class="logo">PackFlow</h1>
-            <div class="signup-content">
-                <p class="coming-soon-text">Coming soon</p>
-                <p class="signup-description">Sign up functionality will be available soon.</p>
-                <a href="index.html" class="back-to-login-link">Back to Sign In</a>
-            </div>
+            <form class="login-form" id="signupForm">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" placeholder="Enter your email" autocomplete="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="new-password" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirm your password" autocomplete="new-password" required>
+                </div>
+                <div class="error-message" id="signup-error" style="display: none;"></div>
+                <div class="success-message" id="signup-success" style="display: none;"></div>
+                <button type="submit" class="login-button">Sign Up</button>
+                <div class="signup-link">
+                    <a href="index.html">Already have an account? Sign in</a>
+                </div>
+            </form>
         </div>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="auth-utils.js"></script>
+    <script src="signup.js"></script>
 </body>
 </html>

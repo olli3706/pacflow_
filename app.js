@@ -1,43 +1,83 @@
-// Login form handling with authentication
-document.addEventListener('DOMContentLoaded', () => {
+// Login form handling with Supabase Auth + temporary dev backdoor
+document.addEventListener('DOMContentLoaded', async () => {
     const loginForm = document.getElementById('loginForm');
     const errorMessage = document.getElementById('login-error');
     const usernameInput = document.getElementById('username');
     const passwordInput = document.getElementById('password');
+    const signInButton = document.getElementById('signInButton');
 
     // Check if already authenticated, redirect to app
-    if (isAuthed()) {
+    const authenticated = await isAuthed();
+    
+    if (authenticated) {
         window.location.href = 'app.html';
         return;
     }
-    
-    if (loginForm) {
-        loginForm.addEventListener('submit', (e) => {
+
+    // Handle form submission - prevent default native form behavior
+    async function handleLogin(e) {
+        // CRITICAL: Prevent default form submission FIRST
+        if (e) {
             e.preventDefault();
-            
-            // Hide previous error
+            e.stopPropagation();
+        }
+        
+        // Prevent any default form action
+        if (loginForm) {
+            loginForm.setAttribute('action', 'javascript:void(0);');
+        }
+        
+        // Hide previous error
+        if (errorMessage) {
+            errorMessage.style.display = 'none';
+            errorMessage.textContent = '';
+        }
+
+        const email = usernameInput ? usernameInput.value.trim() : ''; // Username input treated as email
+        const password = passwordInput ? passwordInput.value : '';
+
+        if (!email || !password) {
             if (errorMessage) {
-                errorMessage.style.display = 'none';
-                errorMessage.textContent = '';
+                errorMessage.textContent = 'Please enter both email and password.';
+                errorMessage.style.display = 'block';
             }
+            return false;
+        }
 
-            const username = usernameInput.value.trim();
-            const password = passwordInput.value;
-
-            // Attempt login
-            if (login(username, password)) {
-                // Success - redirect to main app
-                window.location.href = 'app.html';
-            } else {
-                // Show error message
-                if (errorMessage) {
-                    errorMessage.textContent = 'Invalid username or password. Please try again.';
-                    errorMessage.style.display = 'block';
-                }
-                // Clear password field
+        // Attempt login (handles both Supabase Auth and backdoor)
+        const result = await login(email, password);
+        
+        if (result.success) {
+            // Success - redirect to main app (default tab: Create Statement of Work)
+            // Use window.location.replace to avoid adding to history
+            window.location.replace('app.html');
+        } else {
+            // Show error message - DO NOT redirect on error
+            if (errorMessage) {
+                errorMessage.textContent = result.error || 'Invalid email or password. Please try again.';
+                errorMessage.style.display = 'block';
+            }
+            // Clear password field
+            if (passwordInput) {
                 passwordInput.value = '';
                 passwordInput.focus();
             }
-        });
+        }
+        
+        return false; // Ensure no default behavior
+    }
+    
+    // Attach submit handler to form
+    if (loginForm) {
+        loginForm.addEventListener('submit', handleLogin, false);
+    }
+    
+    // Also attach click handler to button as backup
+    if (signInButton) {
+        signInButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleLogin(e);
+        }, false);
     }
 });
