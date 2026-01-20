@@ -7,6 +7,9 @@ yarn-error.log*
 # Environment variables
 .env
 .env.local
+# Ignore all .env files except .env.example (which should be committed)
+.env.*
+!.env.example
 
 # IDE
 .vscode/

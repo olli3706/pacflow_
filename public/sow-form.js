@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
         projectName: 'electrical work',
         clientName: 'nathan hanson',
         clientEmail: 'billing@acme.com',
+        clientPhone: '',
         startDate: '2026-01-17',
         endDate: '2026-01-29',
         rate: 30,
@@ -21,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
         projectName: document.getElementById('projectName'),
         clientName: document.getElementById('clientName'),
         clientEmail: document.getElementById('clientEmail'),
+        clientPhone: document.getElementById('clientPhone'),
         startDate: document.getElementById('startDate'),
         endDate: document.getElementById('endDate'),
         rate: document.getElementById('rate'),
@@ -37,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
         inputs.projectName.value = sowState.projectName;
         inputs.clientName.value = sowState.clientName;
         inputs.clientEmail.value = sowState.clientEmail;
+        inputs.clientPhone.value = sowState.clientPhone;
         inputs.startDate.value = sowState.startDate;
         inputs.endDate.value = sowState.endDate;
         inputs.rate.value = sowState.rate;
@@ -147,16 +150,45 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Create Payment Request
-    function createPaymentRequest() {
-        if (validateForm()) {
-            const payment = createPaymentFromSOW(sowState);
-            if (savePayment(payment)) {
-                alert('Payment request created (pending)');
-            } else {
-                alert('Error creating payment request');
-            }
+    // Create Payment Request and send SMS notification
+    async function createPaymentRequest() {
+        if (!validateForm()) {
+            return;
         }
+        
+        const payment = createPaymentFromSOW(sowState);
+        const result = await savePayment(payment);
+        
+        if (!result.success) {
+            alert('Error creating payment request: ' + (result.error || 'Unknown error'));
+            return;
+        }
+        
+        // Payment created successfully
+        let message = 'Payment request created successfully!';
+        
+        // Send SMS if client phone is provided
+        if (sowState.clientPhone && sowState.clientPhone.trim()) {
+            const smsMessage = `Hi ${sowState.clientName}, you have a new payment request from PackFlow for $${payment.total.toFixed(2)} for "${sowState.projectName}". Please review and approve.`;
+            
+            try {
+                const smsResult = await sendSMS(sowState.clientPhone, smsMessage);
+                
+                if (smsResult.success) {
+                    message += '\n\nSMS notification sent to ' + sowState.clientPhone;
+                } else {
+                    message += '\n\nNote: SMS notification failed - ' + (smsResult.error || 'Unknown error');
+                    console.warn('SMS send failed:', smsResult.error);
+                }
+            } catch (smsError) {
+                message += '\n\nNote: SMS notification failed - ' + smsError.message;
+                console.error('SMS error:', smsError);
+            }
+        } else {
+            message += '\n\nNo phone number provided - SMS notification not sent.';
+        }
+        
+        alert(message);
     }
 
     // Set up save button

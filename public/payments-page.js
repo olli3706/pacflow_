@@ -1,9 +1,15 @@
 // Payments Page - Display and manage payment requests
-function loadPaymentsPage() {
+async function loadPaymentsPage() {
+    // #region agent log
+    console.log('[DEBUG] loadPaymentsPage called, getPayments type:', typeof getPayments);
+    // #endregion
     const paymentsList = document.getElementById('payments-list');
     if (!paymentsList) return;
 
-    const payments = getPayments();
+    const payments = await getPayments();
+    // #region agent log
+    console.log('[DEBUG] payments:', {type: typeof payments, isArray: Array.isArray(payments), length: payments?.length, value: payments});
+    // #endregion
     
     if (payments.length === 0) {
         paymentsList.innerHTML = '<p class="empty-state">No payment requests yet. Create a payment request from the Create Statement of Work page.</p>';
@@ -70,27 +76,29 @@ function loadPaymentsPage() {
     }).join('');
 }
 
-function acceptPayment(paymentId) {
-    if (updatePaymentStatus(paymentId, 'accepted')) {
-        loadPaymentsPage();
+async function acceptPayment(paymentId) {
+    const result = await updatePaymentStatus(paymentId, 'accepted');
+    if (result && result.success) {
+        await loadPaymentsPage();
         // If metrics page is active, reload it too
         if (document.getElementById('metrics-page').classList.contains('active')) {
-            loadMetricsPage();
+            await loadMetricsPage();
         }
     } else {
-        alert('Error updating payment status');
+        alert('Error updating payment status: ' + (result?.error || 'Unknown error'));
     }
 }
 
-function rejectPayment(paymentId) {
-    if (updatePaymentStatus(paymentId, 'rejected')) {
-        loadPaymentsPage();
+async function rejectPayment(paymentId) {
+    const result = await updatePaymentStatus(paymentId, 'rejected');
+    if (result && result.success) {
+        await loadPaymentsPage();
         // If metrics page is active, reload it too
         if (document.getElementById('metrics-page').classList.contains('active')) {
-            loadMetricsPage();
+            await loadMetricsPage();
         }
     } else {
-        alert('Error updating payment status');
+        alert('Error updating payment status: ' + (result?.error || 'Unknown error'));
     }
 }
 

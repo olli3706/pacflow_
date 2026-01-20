@@ -50,6 +50,11 @@
                                 <input type="email" id="clientEmail" class="sow-input" />
                                 <span class="error-message" id="clientEmail-error"></span>
                             </div>
+                            <div class="sow-form-group">
+                                <label for="clientPhone" class="sow-label">Client Phone (UK Mobile)</label>
+                                <input type="tel" id="clientPhone" class="sow-input" placeholder="07123456789" />
+                                <span class="error-message" id="clientPhone-error"></span>
+                            </div>
                             <div class="sow-form-row">
                                 <div class="sow-form-group">
                                     <label for="startDate" class="sow-label">Start Date</label>
@@ -235,6 +240,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="auth-utils.js"></script>
     <script src="payment-utils.js"></script>
+    <script src="sms-utils.js"></script>
     <script src="chart-utils.js"></script>
     <script src="app-routing.js"></script>
     <script src="sow-form.js"></script>

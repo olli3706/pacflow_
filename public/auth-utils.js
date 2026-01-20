@@ -1,23 +1,68 @@
 // Authentication utility functions with Supabase Auth + temporary dev backdoor
 
-// Supabase client configuration
-const SUPABASE_URL = 'https://hyfqhbzcjqqzmwxodkmv.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5ZnFoYnpjanFxem13eG9ka212Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3MzMzMDYsImV4cCI6MjA4NDMwOTMwNn0.8tB1vca1zv3ChiN9ZEtTmUyadvoiBzBcli84ve11kFs';
-
-// Initialize Supabase client
-// CDN version: window.supabase.createClient()
-// NPM version: createClient() from @supabase/supabase-js
+// Supabase client configuration - fetched from server API
+let supabaseConfig = null;
 let supabaseClientInstance = null;
+let configFetchPromise = null;
 
-function initSupabaseClient() {
+/**
+ * Fetch Supabase public config from server API
+ * @returns {Promise<{supabaseUrl: string, supabaseAnonKey: string}>}
+ */
+async function fetchSupabaseConfig() {
+    if (configFetchPromise) {
+        return configFetchPromise;
+    }
+
+    configFetchPromise = fetch('/api/public-config')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to fetch Supabase config');
+            }
+            return response.json();
+        })
+        .then(config => {
+            supabaseConfig = config;
+            return config;
+        })
+        .catch(error => {
+            console.error('Error fetching Supabase config:', error);
+            configFetchPromise = null;
+            throw error;
+        });
+
+    return configFetchPromise;
+}
+
+/**
+ * Initialize Supabase client using config from server
+ * @returns {Promise<Object|null>}
+ */
+async function initSupabaseClient() {
     if (supabaseClientInstance) return supabaseClientInstance;
     
-    if (typeof window !== 'undefined') {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    try {
+        // Fetch config from server if not already loaded
+        if (!supabaseConfig) {
+            await fetchSupabaseConfig();
+        }
+
+        if (!supabaseConfig || !supabaseConfig.supabaseUrl || !supabaseConfig.supabaseAnonKey) {
+            console.error('Supabase config not available');
+            return null;
+        }
+
         // Try CDN UMD version (exposed as window.supabase.createClient)
         if (window.supabase && typeof window.supabase.createClient === 'function') {
             try {
-                supabaseClientInstance = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                console.log('Supabase client initialized via CDN');
+                supabaseClientInstance = window.supabase.createClient(
+                    supabaseConfig.supabaseUrl,
+                    supabaseConfig.supabaseAnonKey
+                );
                 return supabaseClientInstance;
             } catch (error) {
                 console.error('Error creating Supabase client:', error);
@@ -27,32 +72,25 @@ function initSupabaseClient() {
         // Try direct createClient function (if available)
         if (typeof createClient === 'function') {
             try {
-                supabaseClientInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                console.log('Supabase client initialized via createClient');
+                supabaseClientInstance = createClient(
+                    supabaseConfig.supabaseUrl,
+                    supabaseConfig.supabaseAnonKey
+                );
                 return supabaseClientInstance;
             } catch (error) {
                 console.error('Error creating Supabase client via createClient:', error);
             }
         }
         
-        // Debug: Log what's available
         console.warn('Supabase library not properly loaded. Available:', {
             hasWindowSupabase: !!window.supabase,
-            hasCreateClient: typeof createClient !== 'undefined',
-            windowKeys: Object.keys(window).filter(k => k.toLowerCase().includes('supabase'))
+            hasCreateClient: typeof createClient !== 'undefined'
         });
+    } catch (error) {
+        console.error('Error initializing Supabase client:', error);
     }
     
     return null;
-}
-
-// Initialize on load
-if (typeof document !== 'undefined') {
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initSupabaseClient);
-    } else {
-        initSupabaseClient();
-    }
 }
 
 // Storage keys
@@ -70,7 +108,7 @@ const BACKDOOR_PASSWORD = 'testingtesting12';
  */
 async function isAuthed() {
     // Check for Supabase session
-    const client = initSupabaseClient();
+    const client = await initSupabaseClient();
     if (client) {
         try {
             const { data: { session } } = await client.auth.getSession();
@@ -131,7 +169,7 @@ async function login(email, password) {
     // ============================================
 
     // Primary authentication: Supabase Auth
-    const client = initSupabaseClient();
+    const client = await initSupabaseClient();
     
     if (!client) {
         return { success: false, error: 'Supabase client not initialized. Please refresh the page.' };
@@ -167,7 +205,7 @@ async function login(email, password) {
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 async function signUp(email, password) {
-    const client = initSupabaseClient();
+    const client = await initSupabaseClient();
     if (!client) {
         return { success: false, error: 'Supabase client not initialized. Please refresh the page.' };
     }
@@ -201,7 +239,7 @@ async function signUp(email, password) {
  */
 async function logout() {
     // Logout from Supabase Auth if session exists
-    const client = initSupabaseClient();
+    const client = await initSupabaseClient();
     if (client) {
         try {
             await client.auth.signOut();
@@ -224,7 +262,7 @@ async function logout() {
  * Get current Supabase session (if authenticated via Supabase)
  */
 async function getSupabaseSession() {
-    const client = initSupabaseClient();
+    const client = await initSupabaseClient();
     if (!client) return null;
     
     try {

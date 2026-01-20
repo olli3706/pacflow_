@@ -1,10 +1,19 @@
 // Metrics Page - Display performance metrics from accepted payments
-function loadMetricsPage() {
+async function loadMetricsPage() {
+    // #region agent log
+    console.log('[DEBUG] loadMetricsPage called, getPayments type:', typeof getPayments);
+    // #endregion
     const metricsContainer = document.getElementById('metrics-cards');
     if (!metricsContainer) return;
 
-    let acceptedPayments = getAcceptedPayments();
-    const allPayments = getPayments();
+    let acceptedPayments = await getAcceptedPayments();
+    // #region agent log
+    console.log('[DEBUG] acceptedPayments:', {type: typeof acceptedPayments, isArray: Array.isArray(acceptedPayments), length: acceptedPayments?.length});
+    // #endregion
+    const allPayments = await getPayments();
+    // #region agent log
+    console.log('[DEBUG] allPayments:', {type: typeof allPayments, isArray: Array.isArray(allPayments), length: allPayments?.length, value: allPayments});
+    // #endregion
     const pendingPayments = allPayments.filter(p => p.status === 'pending');
     const rejectedPayments = allPayments.filter(p => p.status === 'rejected');
 
