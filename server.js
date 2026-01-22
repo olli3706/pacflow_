@@ -713,8 +713,8 @@ app.use(express.static(path.join(__dirname, 'public'), {
 }));
 
 // Serve index.html for SPA routes (client-side routing)
-// Use regex catch-all for Vercel compatibility (avoids PathError with '*' route)
-app.get(/.*/, (req, res, next) => {
+// Regex catch-all for Vercel (path-to-regexp rejects bare '*' route)
+app.get(/^(?:\/.*)?$/, (req, res, next) => {
     // Skip API routes
     if (req.path.startsWith('/api/')) {
         return next();
@@ -730,7 +730,7 @@ app.get(/.*/, (req, res, next) => {
 // 404 HANDLER FOR API ROUTES
 // =============================================================================
 
-app.use(/\/api\/.*/, (req, res) => {
+app.use(/^\/api\/.+/, (req, res) => {
     res.status(404).json({ error: 'API endpoint not found' });
 });
 
