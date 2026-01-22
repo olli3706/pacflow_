@@ -43,10 +43,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Handle Settings (placeholder for future functionality)
+    // Handle Settings - navigate to settings page
     if (settingsBtn) {
         settingsBtn.addEventListener('click', () => {
-            alert('Settings page coming soon!');
+            navigateToPage('settings');
         });
     }
 

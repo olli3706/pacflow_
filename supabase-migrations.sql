@@ -132,3 +132,59 @@ CREATE POLICY "Users can insert own sms_log" ON sms_log
 
 -- Index for user queries
 CREATE INDEX IF NOT EXISTS idx_sms_log_user_id ON sms_log(user_id);
+
+-- =============================================================================
+-- USER BANK DETAILS TABLE
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS user_bank_details (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    account_name TEXT NOT NULL,
+    account_number TEXT NOT NULL,
+    sort_code TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    -- Ensure one bank details record per user
+    UNIQUE(user_id)
+);
+
+-- Create index for faster queries by user
+CREATE INDEX IF NOT EXISTS idx_user_bank_details_user_id ON user_bank_details(user_id);
+
+-- Enable RLS on user_bank_details table
+ALTER TABLE user_bank_details ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist (for re-running migrations)
+DROP POLICY IF EXISTS "Users can view own bank details" ON user_bank_details;
+DROP POLICY IF EXISTS "Users can insert own bank details" ON user_bank_details;
+DROP POLICY IF EXISTS "Users can update own bank details" ON user_bank_details;
+DROP POLICY IF EXISTS "Users can delete own bank details" ON user_bank_details;
+
+-- Policy: Users can only view their own bank details
+CREATE POLICY "Users can view own bank details" ON user_bank_details
+    FOR SELECT
+    USING (auth.uid() = user_id);
+
+-- Policy: Users can insert their own bank details
+CREATE POLICY "Users can insert own bank details" ON user_bank_details
+    FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+-- Policy: Users can update their own bank details
+CREATE POLICY "Users can update own bank details" ON user_bank_details
+    FOR UPDATE
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+-- Policy: Users can delete their own bank details
+CREATE POLICY "Users can delete own bank details" ON user_bank_details
+    FOR DELETE
+    USING (auth.uid() = user_id);
+
+-- Trigger to auto-update updated_at timestamp for bank details
+DROP TRIGGER IF EXISTS update_user_bank_details_updated_at ON user_bank_details;
+CREATE TRIGGER update_user_bank_details_updated_at
+    BEFORE UPDATE ON user_bank_details
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();

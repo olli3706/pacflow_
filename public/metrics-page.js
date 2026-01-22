@@ -1,23 +1,13 @@
-// Metrics Page - Display performance metrics from accepted payments
+// Metrics Page - Display performance metrics from confirmed-paid payments (accepted or paid)
 async function loadMetricsPage() {
-    // #region agent log
-    console.log('[DEBUG] loadMetricsPage called, getPayments type:', typeof getPayments);
-    // #endregion
     const metricsContainer = document.getElementById('metrics-cards');
     if (!metricsContainer) return;
 
-    let acceptedPayments = await getAcceptedPayments();
-    // #region agent log
-    console.log('[DEBUG] acceptedPayments:', {type: typeof acceptedPayments, isArray: Array.isArray(acceptedPayments), length: acceptedPayments?.length});
-    // #endregion
+    let confirmedPayments = await getConfirmedPayments();
     const allPayments = await getPayments();
-    // #region agent log
-    console.log('[DEBUG] allPayments:', {type: typeof allPayments, isArray: Array.isArray(allPayments), length: allPayments?.length, value: allPayments});
-    // #endregion
     const pendingPayments = allPayments.filter(p => p.status === 'pending');
     const rejectedPayments = allPayments.filter(p => p.status === 'rejected');
 
-    // Apply filters
     const dateRange = document.getElementById('dateRangeFilter')?.value || 'all';
     const clientFilter = document.getElementById('clientFilter')?.value?.toLowerCase() || '';
 
@@ -25,36 +15,33 @@ async function loadMetricsPage() {
         const daysAgo = parseInt(dateRange);
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - daysAgo);
-        acceptedPayments = acceptedPayments.filter(p => {
+        confirmedPayments = confirmedPayments.filter(p => {
             const paymentDate = p.acceptedAt ? new Date(p.acceptedAt) : new Date(p.createdAt);
             return paymentDate >= cutoffDate;
         });
     }
 
     if (clientFilter) {
-        acceptedPayments = acceptedPayments.filter(p => 
-            p.clientName.toLowerCase().includes(clientFilter) ||
-            p.clientEmail.toLowerCase().includes(clientFilter)
+        confirmedPayments = confirmedPayments.filter(p =>
+            (p.clientName || '').toLowerCase().includes(clientFilter) ||
+            (p.clientEmail || '').toLowerCase().includes(clientFilter)
         );
     }
 
-    // Calculate metrics
-    const totalRevenue = acceptedPayments.reduce((sum, p) => sum + (p.total || 0), 0);
-    const acceptedCount = acceptedPayments.length;
-    const averagePayment = acceptedCount > 0 ? totalRevenue / acceptedCount : 0;
-    const totalHours = acceptedPayments.reduce((sum, p) => sum + (p.hoursWorked || 0), 0);
-    
-    // Acceptance rate
-    const totalDecided = acceptedCount + rejectedPayments.length;
-    const acceptanceRate = totalDecided > 0 
-        ? ((acceptedCount / totalDecided) * 100).toFixed(1) + '%'
+    const totalRevenue = confirmedPayments.reduce((sum, p) => sum + (p.total || 0), 0);
+    const confirmedCount = confirmedPayments.length;
+    const averagePayment = confirmedCount > 0 ? totalRevenue / confirmedCount : 0;
+    const totalHours = confirmedPayments.reduce((sum, p) => sum + (p.hoursWorked || 0), 0);
+
+    const totalDecided = confirmedCount + rejectedPayments.length;
+    const acceptanceRate = totalDecided > 0
+        ? ((confirmedCount / totalDecided) * 100).toFixed(1) + '%'
         : 'N/A';
 
-    // Display cards
-    if (acceptedCount === 0 && !clientFilter) {
+    if (confirmedCount === 0 && !clientFilter) {
         metricsContainer.innerHTML = `
             <div class="empty-state-metrics">
-                <p>No accepted payments yet. Create a payment request and mark it as accepted to see metrics.</p>
+                <p>No confirmed payments yet. Create a payment request, then use <strong>Confirm Paid</strong> on the Payments page when the client has paid. Results will appear here.</p>
             </div>
         `;
         return;
@@ -62,12 +49,12 @@ async function loadMetricsPage() {
 
     metricsContainer.innerHTML = `
         <div class="metric-card">
-            <div class="metric-label">Total Accepted Revenue</div>
+            <div class="metric-label">Total Confirmed Revenue</div>
             <div class="metric-value">$${totalRevenue.toFixed(2)}</div>
         </div>
         <div class="metric-card">
-            <div class="metric-label">Accepted Payments Count</div>
-            <div class="metric-value">${acceptedCount}</div>
+            <div class="metric-label">Confirmed Payments</div>
+            <div class="metric-value">${confirmedCount}</div>
         </div>
         <div class="metric-card">
             <div class="metric-label">Average Payment Value</div>
@@ -83,14 +70,9 @@ async function loadMetricsPage() {
         </div>
     `;
 
-    // Load revenue over time (with filters)
-    loadRevenueOverTime(acceptedPayments);
-
-    // Load top clients
-    loadTopClients(acceptedPayments);
-
-    // Load recent accepted payments
-    loadRecentPayments(acceptedPayments);
+    loadRevenueOverTime(confirmedPayments);
+    loadTopClients(confirmedPayments);
+    loadRecentPayments(confirmedPayments);
 }
 
 function loadRevenueOverTime(payments) {
@@ -256,7 +238,6 @@ function loadTopClients(payments) {
         return;
     }
 
-    // Group by client
     const clientData = {};
     payments.forEach(payment => {
         const key = payment.clientName || payment.clientEmail || 'Unknown';
@@ -272,7 +253,6 @@ function loadTopClients(payments) {
         clientData[key].count += 1;
     });
 
-    // Sort by revenue
     const sortedClients = Object.values(clientData)
         .sort((a, b) => b.revenue - a.revenue)
         .slice(0, 10);
@@ -282,8 +262,8 @@ function loadTopClients(payments) {
             <thead>
                 <tr>
                     <th>Client Name</th>
-                    <th>Accepted Revenue</th>
-                    <th>Accepted Count</th>
+                    <th>Confirmed Revenue</th>
+                    <th>Count</th>
                 </tr>
             </thead>
             <tbody>
@@ -308,7 +288,6 @@ function loadRecentPayments(payments) {
         return;
     }
 
-    // Sort by accepted date (most recent first) and take top 10
     const recent = [...payments]
         .sort((a, b) => {
             const dateA = a.acceptedAt ? new Date(a.acceptedAt) : new Date(a.createdAt);
@@ -325,21 +304,24 @@ function loadRecentPayments(payments) {
                     <th>Client</th>
                     <th>Hours</th>
                     <th>Total</th>
-                    <th>Accepted Date</th>
+                    <th>Status</th>
+                    <th>Confirmed Date</th>
                 </tr>
             </thead>
             <tbody>
                 ${recent.map(payment => {
-                    const acceptedDate = payment.acceptedAt 
+                    const confirmedDate = payment.acceptedAt
                         ? new Date(payment.acceptedAt).toLocaleDateString()
                         : new Date(payment.createdAt).toLocaleDateString();
+                    const statusBadge = payment.status === 'paid' ? 'Paid' : 'Accepted';
                     return `
                         <tr>
                             <td>${payment.projectName || 'Untitled'}</td>
-                            <td>${payment.clientName}<br><small>${payment.clientEmail}</small></td>
+                            <td>${payment.clientName}<br><small>${payment.clientEmail || ''}</small></td>
                             <td>${payment.hoursWorked}</td>
                             <td>$${payment.total.toFixed(2)}</td>
-                            <td>${acceptedDate}</td>
+                            <td>${statusBadge}</td>
+                            <td>${confirmedDate}</td>
                         </tr>
                     `;
                 }).join('')}

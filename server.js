@@ -93,10 +93,21 @@ if (process.env.PRODUCTION_URL) {
     allowedOrigins.push(process.env.PRODUCTION_URL);
 }
 
+// Add Vercel domains (for deployment)
+if (process.env.VERCEL_URL) {
+    allowedOrigins.push(`https://${process.env.VERCEL_URL}`);
+}
+// Also allow any *.vercel.app subdomain
+allowedOrigins.push(/^https:\/\/.*\.vercel\.app$/);
+
 const corsOptions = {
     origin: function (origin, callback) {
         // Allow requests with no origin (like mobile apps, curl, Postman in dev)
         if (!origin) {
+            // In production on Vercel, allow requests without origin (serverless functions)
+            if (process.env.VERCEL || process.env.VERCEL_URL) {
+                return callback(null, true);
+            }
             // In production, you might want to reject requests without origin
             if (process.env.NODE_ENV === 'production') {
                 return callback(new Error('Origin required'), false);
@@ -104,7 +115,15 @@ const corsOptions = {
             return callback(null, true);
         }
         
-        if (allowedOrigins.includes(origin)) {
+        // Check if origin matches any allowed origin (including regex patterns)
+        const isAllowed = allowedOrigins.some(allowed => {
+            if (allowed instanceof RegExp) {
+                return allowed.test(origin);
+            }
+            return allowed === origin;
+        });
+        
+        if (isAllowed) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'), false);
@@ -354,6 +373,30 @@ app.post('/api/send-sms', smsLimiter, requireAuth, async (req, res) => {
 // PAYMENT API ROUTES (Supabase Database)
 // =============================================================================
 
+// Helper function to convert payment object from snake_case to camelCase
+function convertPaymentToCamelCase(payment) {
+    if (!payment) return null;
+    return {
+        id: payment.id,
+        userId: payment.user_id,
+        projectName: payment.project_name || null,
+        clientName: payment.client_name || '',
+        clientEmail: payment.client_email || null,
+        clientPhone: payment.client_phone || null,
+        workPeriodStart: payment.work_period_start || null,
+        workPeriodEnd: payment.work_period_end || null,
+        hoursWorked: payment.hours_worked || 0,
+        rate: payment.rate || 0,
+        additionalFees: payment.additional_fees || 0,
+        subtotal: payment.subtotal || 0,
+        total: payment.total || 0,
+        status: payment.status || 'pending',
+        createdAt: payment.created_at || null,
+        acceptedAt: payment.accepted_at || null,
+        updatedAt: payment.updated_at || null
+    };
+}
+
 // Get all payments for the authenticated user
 app.get('/api/payments', requireAuth, async (req, res) => {
     try {
@@ -370,7 +413,13 @@ app.get('/api/payments', requireAuth, async (req, res) => {
             return res.status(500).json({ error: 'Failed to fetch payments' });
         }
         
-        res.json({ payments: data || [] });
+        console.log('[DEBUG] Raw payments from Supabase:', JSON.stringify(data, null, 2));
+        
+        // Convert snake_case to camelCase
+        const convertedPayments = (data || []).map(convertPaymentToCamelCase).filter(p => p !== null);
+        console.log('[DEBUG] Converted payments:', JSON.stringify(convertedPayments, null, 2));
+        
+        res.json({ payments: convertedPayments });
         
     } catch (error) {
         console.error('Error in GET /api/payments:', error);
@@ -427,7 +476,9 @@ app.post('/api/payments', requireAuth, async (req, res) => {
             return res.status(500).json({ error: 'Failed to create payment' });
         }
         
-        res.status(201).json({ payment: data });
+        // Convert snake_case to camelCase
+        const convertedPayment = convertPaymentToCamelCase(data);
+        res.status(201).json({ payment: convertedPayment });
         
     } catch (error) {
         console.error('Error in POST /api/payments:', error);
@@ -477,7 +528,9 @@ app.put('/api/payments/:id', requireAuth, async (req, res) => {
             return res.status(500).json({ error: 'Failed to update payment' });
         }
         
-        res.json({ payment: data });
+        // Convert snake_case to camelCase
+        const convertedPayment = convertPaymentToCamelCase(data);
+        res.json({ payment: convertedPayment });
         
     } catch (error) {
         console.error('Error in PUT /api/payments/:id:', error);
@@ -512,6 +565,127 @@ app.delete('/api/payments/:id', requireAuth, async (req, res) => {
 });
 
 // =============================================================================
+// BANK DETAILS API ROUTES (Supabase Database)
+// =============================================================================
+
+// Get bank details for the authenticated user
+app.get('/api/bank-details', requireAuth, async (req, res) => {
+    try {
+        const supabase = getSupabaseAdmin();
+        
+        const { data, error } = await supabase
+            .from('user_bank_details')
+            .select('*')
+            .eq('user_id', req.user.id)
+            .single();
+        
+        if (error) {
+            // If no record found, return null (not an error)
+            if (error.code === 'PGRST116') {
+                return res.json({ bankDetails: null });
+            }
+            console.error('Error fetching bank details:', error);
+            return res.status(500).json({ error: 'Failed to fetch bank details' });
+        }
+        
+        res.json({ bankDetails: data });
+        
+    } catch (error) {
+        console.error('Error in GET /api/bank-details:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Create or update bank details for the authenticated user (upsert)
+app.post('/api/bank-details', requireAuth, async (req, res) => {
+    try {
+        const { accountName, accountNumber, sortCode } = req.body;
+        
+        // Validate required fields
+        if (!accountName || !accountNumber || !sortCode) {
+            return res.status(400).json({ 
+                error: 'Account name, account number, and sort code are required' 
+            });
+        }
+        
+        // Validate account name (max 100 characters)
+        if (accountName.trim().length === 0 || accountName.length > 100) {
+            return res.status(400).json({ 
+                error: 'Account name must be between 1 and 100 characters' 
+            });
+        }
+        
+        // Validate account number (exactly 8 digits)
+        const cleanedAccountNumber = accountNumber.replace(/\s+/g, '');
+        if (!/^\d{8}$/.test(cleanedAccountNumber)) {
+            return res.status(400).json({ 
+                error: 'Account number must be exactly 8 digits' 
+            });
+        }
+        
+        // Validate sort code (exactly 6 digits, can be formatted as XX-XX-XX)
+        const cleanedSortCode = sortCode.replace(/[-\s]/g, '');
+        if (!/^\d{6}$/.test(cleanedSortCode)) {
+            return res.status(400).json({ 
+                error: 'Sort code must be exactly 6 digits (format: XX-XX-XX or XXXXXX)' 
+            });
+        }
+        
+        const supabase = getSupabaseAdmin();
+        
+        // Check if bank details already exist for this user
+        const { data: existing } = await supabase
+            .from('user_bank_details')
+            .select('id')
+            .eq('user_id', req.user.id)
+            .single();
+        
+        const bankDetailsData = {
+            user_id: req.user.id,
+            account_name: accountName.trim(),
+            account_number: cleanedAccountNumber,
+            sort_code: cleanedSortCode
+        };
+        
+        let data, error;
+        
+        if (existing) {
+            // Update existing record
+            const { data: updated, error: updateError } = await supabase
+                .from('user_bank_details')
+                .update(bankDetailsData)
+                .eq('user_id', req.user.id)
+                .select()
+                .single();
+            
+            data = updated;
+            error = updateError;
+        } else {
+            // Insert new record
+            const { data: inserted, error: insertError } = await supabase
+                .from('user_bank_details')
+                .insert(bankDetailsData)
+                .select()
+                .single();
+            
+            data = inserted;
+            error = insertError;
+        }
+        
+        if (error) {
+            console.error('Error saving bank details:', error);
+            return res.status(500).json({ error: 'Failed to save bank details' });
+        }
+        
+        res.json({ bankDetails: data });
+        
+    } catch (error) {
+        console.error('Error in POST /api/bank-details:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// =============================================================================
 // STATIC FILE SERVING (from public folder)
 // =============================================================================
 
@@ -539,10 +713,15 @@ app.use(express.static(path.join(__dirname, 'public'), {
 }));
 
 // Serve index.html for SPA routes (client-side routing)
-// Note: Express 5 requires named wildcard parameters
-app.get('{*path}', (req, res, next) => {
+// Note: Express 5 requires named wildcard parameters, but for Vercel compatibility
+// we use a more standard catch-all pattern
+app.get('*', (req, res, next) => {
     // Skip API routes
     if (req.path.startsWith('/api/')) {
+        return next();
+    }
+    // Skip static file requests (Vercel handles these, but this is a fallback)
+    if (req.path.includes('.')) {
         return next();
     }
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -552,7 +731,7 @@ app.get('{*path}', (req, res, next) => {
 // 404 HANDLER FOR API ROUTES
 // =============================================================================
 
-app.use('/api/{*path}', (req, res) => {
+app.use('/api/*', (req, res) => {
     res.status(404).json({ error: 'API endpoint not found' });
 });
 
@@ -587,13 +766,20 @@ app.use((err, req, res, next) => {
 });
 
 // =============================================================================
-// START SERVER
+// START SERVER (only if not running on Vercel)
 // =============================================================================
 
-app.listen(PORT, () => {
-    console.log(`\n🚀 PackFlow server running at http://localhost:${PORT}/`);
-    console.log('📁 Serving static files from: ./public');
-    console.log('🔒 Authentication: Enabled');
-    console.log('⏱️  Rate limiting: Enabled');
-    console.log('\nPress Ctrl+C to stop the server\n');
-});
+// Only start the server if not running on Vercel
+// Vercel handles the serverless function invocation
+if (process.env.VERCEL !== '1' && !process.env.VERCEL_URL) {
+    app.listen(PORT, () => {
+        console.log(`\n🚀 PackFlow server running at http://localhost:${PORT}/`);
+        console.log('📁 Serving static files from: ./public');
+        console.log('🔒 Authentication: Enabled');
+        console.log('⏱️  Rate limiting: Enabled');
+        console.log('\nPress Ctrl+C to stop the server\n');
+    });
+} else {
+    // Running on Vercel - export the app for serverless function
+    console.log('Running on Vercel - serverless mode');
+}

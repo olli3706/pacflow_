@@ -150,6 +150,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Format sort code for display (XX-XX-XX)
+    function formatSortCode(sortCode) {
+        if (!sortCode) return '';
+        const cleaned = sortCode.replace(/[-\s]/g, '');
+        if (cleaned.length === 6 && /^\d{6}$/.test(cleaned)) {
+            return cleaned.substring(0, 2) + '-' + cleaned.substring(2, 4) + '-' + cleaned.substring(4, 6);
+        }
+        return sortCode;
+    }
+
     // Create Payment Request and send SMS notification
     async function createPaymentRequest() {
         if (!validateForm()) {
@@ -169,13 +179,32 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Send SMS if client phone is provided
         if (sowState.clientPhone && sowState.clientPhone.trim()) {
-            const smsMessage = `Hi ${sowState.clientName}, you have a new payment request from PackFlow for $${payment.total.toFixed(2)} for "${sowState.projectName}". Please review and approve.`;
+            // Fetch bank details to include in SMS
+            let bankDetails = null;
+            try {
+                bankDetails = await getBankDetails();
+            } catch (error) {
+                console.warn('Could not fetch bank details:', error);
+            }
+            
+            // Build SMS message with bank details if available
+            let smsMessage = `Hi ${sowState.clientName}, you have a new payment request from PackFlow for $${payment.total.toFixed(2)} for "${sowState.projectName}".`;
+            
+            if (bankDetails) {
+                const formattedSortCode = formatSortCode(bankDetails.sort_code);
+                smsMessage += ` Please pay to: ${bankDetails.account_name}, Sort Code: ${formattedSortCode}, Account: ${bankDetails.account_number}.`;
+            }
+            
+            smsMessage += ' Please review and approve.';
             
             try {
                 const smsResult = await sendSMS(sowState.clientPhone, smsMessage);
                 
                 if (smsResult.success) {
                     message += '\n\nSMS notification sent to ' + sowState.clientPhone;
+                    if (!bankDetails) {
+                        message += '\n\nNote: Bank details not found in settings. Please add them to include payment information in SMS.';
+                    }
                 } else {
                     message += '\n\nNote: SMS notification failed - ' + (smsResult.error || 'Unknown error');
                     console.warn('SMS send failed:', smsResult.error);

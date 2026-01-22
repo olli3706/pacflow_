@@ -502,6 +502,32 @@ body {
     transform: translateY(-1px);
 }
 
+.paid-btn {
+    background: #3498db;
+    color: white;
+}
+
+.paid-btn:hover {
+    background: #2980b9;
+    transform: translateY(-1px);
+}
+
+.sms-btn {
+    background: #9b59b6;
+    color: white;
+}
+
+.sms-btn:hover {
+    background: #8e44ad;
+    transform: translateY(-1px);
+}
+
+.sms-btn:disabled {
+    background: #95a5a6;
+    cursor: not-allowed;
+    transform: none;
+}
+
 .empty-state {
     text-align: center;
     padding: 40px;

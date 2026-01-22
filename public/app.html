@@ -216,9 +216,9 @@
                     </div>
                 </div>
 
-                <!-- Recent Accepted Payments -->
+                <!-- Recent Confirmed Payments -->
                 <div class="metrics-section">
-                    <h3 class="metrics-section-title">Recent Accepted Payments</h3>
+                    <h3 class="metrics-section-title">Recent Confirmed Payments</h3>
                     <div id="recent-payments-table" class="metrics-table-container">
                         <!-- Table will be dynamically loaded here -->
                     </div>
@@ -235,6 +235,45 @@
                 </div>
             </div>
         </div>
+
+        <!-- Settings Page -->
+        <div id="settings-page" class="page">
+            <h2>Settings</h2>
+            <div class="settings-container">
+                <div class="settings-card">
+                    <h3 class="settings-card-title">Bank Details</h3>
+                    <p class="settings-description">Add your bank details to include them in payment request SMS messages.</p>
+                    
+                    <form id="bankDetailsForm" class="settings-form">
+                        <div class="settings-form-group">
+                            <label for="bankAccountName" class="settings-label">Account Name <span class="required">*</span></label>
+                            <input type="text" id="bankAccountName" class="settings-input" placeholder="John Smith" maxlength="100" />
+                            <span class="error-message" id="bankAccountName-error"></span>
+                        </div>
+                        
+                        <div class="settings-form-group">
+                            <label for="bankAccountNumber" class="settings-label">Account Number <span class="required">*</span></label>
+                            <input type="text" id="bankAccountNumber" class="settings-input" placeholder="12345678" maxlength="8" pattern="[0-9]{8}" />
+                            <span class="error-message" id="bankAccountNumber-error"></span>
+                            <small class="settings-hint">8 digits only</small>
+                        </div>
+                        
+                        <div class="settings-form-group">
+                            <label for="bankSortCode" class="settings-label">Sort Code <span class="required">*</span></label>
+                            <input type="text" id="bankSortCode" class="settings-input" placeholder="12-34-56" maxlength="8" pattern="[0-9]{2}-[0-9]{2}-[0-9]{2}" />
+                            <span class="error-message" id="bankSortCode-error"></span>
+                            <small class="settings-hint">Format: XX-XX-XX (6 digits)</small>
+                        </div>
+                        
+                        <div class="settings-form-actions">
+                            <button type="submit" id="saveBankDetailsBtn" class="settings-save-btn">Save Bank Details</button>
+                        </div>
+                    </form>
+                    
+                    <div id="bankDetailsStatus" class="settings-status"></div>
+                </div>
+            </div>
+        </div>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -246,6 +285,7 @@
     <script src="sow-form.js"></script>
     <script src="payments-page.js"></script>
     <script src="metrics-page.js"></script>
+    <script src="settings-page.js"></script>
     <script>
         // Protect app route - check authentication on load
         // Allows access if either Supabase session OR backdoor auth exists

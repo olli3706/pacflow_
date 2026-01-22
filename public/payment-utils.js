@@ -178,6 +178,28 @@ async function getAcceptedPayments() {
 }
 
 /**
+ * Get confirmed-paid payments (accepted or paid).
+ * Used for metrics: contractor has confirmed client paid and/or money received.
+ */
+async function getConfirmedPayments() {
+    const payments = await getPayments();
+    return payments.filter(p => p.status === 'accepted' || p.status === 'paid');
+}
+
+/**
+ * Get bank details from the API
+ */
+async function getBankDetails() {
+    try {
+        const data = await apiRequest('/api/bank-details');
+        return data.bankDetails;
+    } catch (error) {
+        console.error('Error fetching bank details:', error);
+        return null;
+    }
+}
+
+/**
  * Create a payment record from SOW state
  * Note: This returns the payment object but doesn't save it automatically
  */
@@ -221,6 +243,8 @@ if (typeof module !== 'undefined' && module.exports) {
         deletePayment,
         getPaymentsByStatus,
         getAcceptedPayments,
+        getConfirmedPayments,
+        getBankDetails,
         createPaymentFromSOW,
         createAndSavePaymentFromSOW
     };
